@@ -1,0 +1,100 @@
+server:
+  port: 8080
+
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    show-sql: false
+
+  flyway:
+    enabled: true
+
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+
+  cache:
+    type: redis
+
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+cache:
+  redirect-ttl-hours: 24
+
+app:
+  base-url: ${BASE_URL}
+  jwt:
+    secret: ${JWT_SECRET}
+    expiration: ${JWT_EXPIRATION}
+    refresh-expiration: ${JWT_REFRESH_EXPIRATION}
+
+  short-code:
+    length: 7
+    max-retry-attempts: 5
+
+  url:
+    default-expiry-days: 30
+
+scheduler:
+  url-expiry-cron: "0 0 * * * *"
+  deleted-url-cleanup-cron: "0 0 2 * * *"
+  deleted-url-retention-days: 30
+  token-cleanup-cron: "0 30 2 * * *"
+  expiry-reminder-cron: "0 0 9 * * *"
+  expiry-reminder-hours: 24
+
+rate-limit:
+  login:
+    requests: 5
+    duration: 60
+
+  register:
+    requests: 3
+    duration: 3600
+
+  forgot-password:
+    requests: 3
+    duration: 3600
+
+  refresh-token:
+    requests: 20
+    duration: 60
+
+  redirect:
+    requests: 100
+    duration: 60
+
+  create-url:
+    requests: 50
+    duration: 3600
+
+management:
+  endpoint:
+    health:
+      show-details: never
+
+logging:
+  level:
+    org.springframework: WARN
