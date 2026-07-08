@@ -1,10 +1,68 @@
 <!DOCTYPE html>
-<html lang="en">
+<html xmlns:th="http://www.thymeleaf.org">
+
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
+    <title>ZipLink Expiry Reminder</title>
 </head>
-<body>
+
+<body style="font-family: Arial, sans-serif; background:#f5f5f5; padding:30px;">
+
+<div style="max-width:650px;background:white;padding:30px;border-radius:10px;margin:auto;">
+
+    <h2 style="color:#2563eb;">
+        ⏰ Your ZipLink is Expiring Soon
+    </h2>
+
+
+    <p>
+        Hello <strong th:text="${name}"></strong>,
+    </p>
+
+
+    <p>
+        This is a friendly reminder that one of your shortened links is going to <strong>expire on</strong>
+        <span
+         th:text="${expiryDate}"></span>
+    </p>
+
+    <hr>
+
+    <p>
+        <strong>Short Code:</strong>
+    </p>
+
+    <p>
+        <code th:text="${shortUrl}"></code>
+    </p>
+
+    <p>
+        <strong>Original URL:</strong>
+    </p>
+
+    <p>
+        <span th:text="${originalUrl}"></span>
+    </p>
+
+    <hr>
+
+    <p>
+        If you still need this link, please update its expiry date before it expires.
+    </p>
+
+    <p>
+        Thank you for using <strong>ZipLink</strong>.
+    </p>
+
+    <br>
+
+    <p>
+        Regards,<br>
+        ZipLink Team
+    </p>
+
+</div>
 
 </body>
+
 </html>

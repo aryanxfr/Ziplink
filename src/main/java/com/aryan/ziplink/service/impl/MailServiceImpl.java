@@ -1,5 +1,6 @@
 package com.aryan.ziplink.service.impl;
 
+import com.aryan.ziplink.config.AppProperties;
 import com.aryan.ziplink.entity.Url;
 import com.aryan.ziplink.entity.User;
 import com.aryan.ziplink.service.MailService;
@@ -16,10 +17,12 @@ import org.thymeleaf.context.Context;
 public class MailServiceImpl implements MailService {
     private final JavaMailSender mailSender;
     private final TemplateEngine templateEngine;
+    private final AppProperties appProperties;
 
-    public MailServiceImpl(JavaMailSender mailSender, TemplateEngine templateEngine) {
+    public MailServiceImpl(JavaMailSender mailSender, TemplateEngine templateEngine, AppProperties appProperties) {
         this.mailSender = mailSender;
         this.templateEngine = templateEngine;
+        this.appProperties = appProperties;
     }
 
     @Override
@@ -91,8 +94,10 @@ public class MailServiceImpl implements MailService {
     public void sendExpiryReminderEmail(User user, Url url) {
         Context context=new Context();
         context.setVariable("name",user.getUsername());
-        context.setVariable("shortUrl",url.getShortCode());
+        context.setVariable("shortUrl", appProperties.baseUrl() + "/" + url.getShortCode());
         context.setVariable("originalUrl",url.getOriginalUrl());
+        context.setVariable("expiryDate", url.getExpiresAt());
+
 
         String html=templateEngine.process("expiry-reminder-email",context);
 
