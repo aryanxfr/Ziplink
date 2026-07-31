@@ -1,19 +1,20 @@
 package com.aryan.ziplink.service;
 
 import com.aryan.ziplink.dto.request.*;
-import com.aryan.ziplink.dto.response.AuthResponse;
 import com.aryan.ziplink.dto.response.UserResponse;
+import com.aryan.ziplink.security.auth.AuthenticatedSession;
 
 public interface AuthService {
     UserResponse register(RegisterRequest request);
-    AuthResponse login(LoginRequest request);
+    AuthenticatedSession login(LoginRequest request);
     void verifyEmail(String token);
     void resendVerificationEmail(ResendVerificationRequest request);
-    AuthResponse refreshToken(RefreshTokenRequest request);
-    void logout(RefreshTokenRequest request);
+    AuthenticatedSession refreshToken(String refreshToken);
+    void logout(String refreshToken);
     void forgotPassword(ForgotPasswordRequest request);
     void resetPassword(ResetPasswordRequest request);
     void changePassword(ChangePasswordRequest request);
+
 
 
 }

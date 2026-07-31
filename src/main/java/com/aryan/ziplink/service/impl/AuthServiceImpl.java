@@ -2,7 +2,6 @@ package com.aryan.ziplink.service.impl;
 
 import com.aryan.ziplink.config.JwtProperties;
 import com.aryan.ziplink.dto.request.*;
-import com.aryan.ziplink.dto.response.AuthResponse;
 import com.aryan.ziplink.dto.response.UserResponse;
 import com.aryan.ziplink.entity.PasswordResetToken;
 import com.aryan.ziplink.entity.RefreshToken;
@@ -12,16 +11,19 @@ import com.aryan.ziplink.enums.Role;
 import com.aryan.ziplink.exception.BadRequestException;
 import com.aryan.ziplink.exception.DuplicateResourceException;
 import com.aryan.ziplink.exception.ResourceNotFoundException;
+import com.aryan.ziplink.exception.UnauthorizedException;
 import com.aryan.ziplink.mapper.UserMapper;
 import com.aryan.ziplink.repository.PasswordResetTokenRepository;
 import com.aryan.ziplink.repository.RefreshTokenRepository;
 import com.aryan.ziplink.repository.UserRepository;
 import com.aryan.ziplink.repository.VerificationTokenRepository;
 import com.aryan.ziplink.security.CustomUserDetails;
+import com.aryan.ziplink.security.auth.AuthenticatedSession;
 import com.aryan.ziplink.service.AuthService;
 import com.aryan.ziplink.service.JwtService;
 import com.aryan.ziplink.service.MailService;
 import com.aryan.ziplink.util.SecurityUtils;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -68,6 +70,9 @@ public class AuthServiceImpl implements AuthService {
         this.passwordResetTokenRepository = passwordResetTokenRepository;
     }
 
+    @Value("${app.frontend-url}")
+    private String frontendUrl;
+
     @Override
     public UserResponse register(RegisterRequest request){
         if(userRepository.existsByEmail(request.email())){
@@ -92,23 +97,28 @@ public class AuthServiceImpl implements AuthService {
                                                 .build();
         verificationTokenRepository.save(token);
 
-        mailService.sendVerificationEmail(savedUser,"http://localhost:8080/api/v1/auth/verify?token=" + token.getToken());
+        mailService.sendVerificationEmail(savedUser,frontendUrl + "/verification-success?token=" + token.getToken());
         return userMapper.toResponse(savedUser);
     }
 
     @Override
-    public AuthResponse login(LoginRequest request){
+    public AuthenticatedSession login(LoginRequest request){
+
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
                         request.email(),
                         request.password()
-                )
-        );
+                ));
+
         CustomUserDetails userDetails=
                 (CustomUserDetails) authentication.getPrincipal();
+
         User user=userDetails.getUser();
+
         String accessToken = jwtService.generateToken(userDetails);
+
         String refreshToken=UUID.randomUUID().toString();
+
         RefreshToken refreshTokenEntity=RefreshToken.builder()
                 .token(refreshToken)
                 .user(user)
@@ -116,11 +126,10 @@ public class AuthServiceImpl implements AuthService {
                 .build();
 
         refreshTokenRepository.save(refreshTokenEntity);
-        return new AuthResponse(
+        return new AuthenticatedSession(
                 accessToken,
-                "Bearer",
-                jwtService.getExpiration(),
                 refreshToken
+
         );
     }
 
@@ -163,43 +172,46 @@ public class AuthServiceImpl implements AuthService {
         verificationTokenRepository.save(verificationToken);
 
         mailService.sendVerificationEmail(user,
-                "http://localhost:8080/api/v1/verify?token=" + verificationToken.getToken());
+                frontendUrl + "/verification-success?token="+ verificationToken.getToken());
     }
 
     @Override
     @Transactional(readOnly = true)
-    public AuthResponse refreshToken(RefreshTokenRequest request) {
-        RefreshToken refreshToken=refreshTokenRepository.findByToken(request.refreshToken())
-                .orElseThrow(()-> new ResourceNotFoundException("Invalid Refresh Token"));
-        if(refreshToken.getRevoked()){
-            throw new BadRequestException("Refresh Token has been revoked");
+    public AuthenticatedSession refreshToken(String refreshToken) {
+        RefreshToken storedToken=refreshTokenRepository.findByToken(refreshToken)
+                .orElseThrow(()-> new UnauthorizedException("Invalid Refresh Token"));
+        if(storedToken.getExpiresAt().isBefore(Instant.now())){
+            refreshTokenRepository.delete(storedToken);
+            throw new UnauthorizedException("Refresh Token expired");
         }
-        if(refreshToken.getExpiresAt().isBefore(Instant.now())){
-            throw new BadRequestException("Refresh token has expired");
-        }
-        User user=refreshToken.getUser();
-        UserDetails userDetails=new CustomUserDetails(user);
-        String accessToken= jwtService.generateToken(userDetails);
+        User user=storedToken.getUser();
 
-        return new AuthResponse(
-                accessToken,
-                "Bearer",
-                jwtService.getExpiration(),
-                refreshToken.getToken()
+        UserDetails userDetails=new CustomUserDetails(user);
+        String newAccessToken= jwtService.generateToken(userDetails);
+
+        refreshTokenRepository.delete(storedToken);
+
+        String newRefreshToken=UUID.randomUUID().toString();
+        RefreshToken refreshTokenEntity=RefreshToken.builder()
+                .token(newRefreshToken)
+                .user(user)
+                .expiresAt(Instant.now().plusMillis(jwtProperties.refreshExpiration())
+                )
+                .build();
+        refreshTokenRepository.save(refreshTokenEntity);
+
+        return new AuthenticatedSession(
+                newAccessToken,
+                newRefreshToken
         );
     }
 
     @Override
-    public void logout(RefreshTokenRequest request) {
-        RefreshToken refreshToken=refreshTokenRepository.findByToken(request.refreshToken())
-                .orElseThrow(()-> new BadRequestException("Invalid refresh token"));
+    public void logout(String refreshToken) {
+        RefreshToken storedToken=refreshTokenRepository.findByToken(refreshToken)
+                .orElseThrow(()-> new UnauthorizedException("Invalid refresh token"));
 
-        if(refreshToken.getRevoked()){
-            throw new BadRequestException("Already logged out");
-        }
-
-        refreshToken.setRevoked(true);
-        refreshTokenRepository.save(refreshToken);
+        refreshTokenRepository.delete(storedToken);
     }
 
     @Override
@@ -231,8 +243,7 @@ public class AuthServiceImpl implements AuthService {
             passwordResetTokenRepository.save(resetToken);
         }
         mailService.sendPasswordResetEmail( user,
-                "http://localhost:8080/api/v1/auth/reset-password?token="
-                        + resetToken.getToken());
+                 frontendUrl + "/reset-password?token="+ resetToken.getToken());
     }
 
     @Override

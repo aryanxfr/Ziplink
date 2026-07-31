@@ -1,16 +1,23 @@
 package com.aryan.ziplink.controller;
 
+import com.aryan.ziplink.config.CookieProperties;
 import com.aryan.ziplink.dto.request.*;
 import com.aryan.ziplink.dto.response.ApiResponse;
 import com.aryan.ziplink.dto.response.AuthResponse;
 import com.aryan.ziplink.dto.response.UserResponse;
+import com.aryan.ziplink.exception.UnauthorizedException;
 import com.aryan.ziplink.ratelimit.annotation.RateLimit;
 import com.aryan.ziplink.ratelimit.enums.RateLimitType;
+import com.aryan.ziplink.security.auth.AuthenticatedSession;
+import com.aryan.ziplink.security.cookie.CookieUtils;
+import com.aryan.ziplink.security.cookie.JwtCookieService;
+import com.aryan.ziplink.service.JwtService;
 import com.aryan.ziplink.service.impl.AuthServiceImpl;
-import com.aryan.ziplink.util.ResponseUtil;
-import jakarta.servlet.FilterChain;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,9 +25,14 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/v1/auth")
 public class AuthController {
     private final AuthServiceImpl authService;
-
-    public AuthController(AuthServiceImpl authService) {
+    private final JwtCookieService jwtCookieService;
+    private final JwtService jwtService;
+    private final CookieProperties cookieProperties;
+    public AuthController(AuthServiceImpl authService, JwtCookieService jwtCookieService, JwtService jwtService, CookieProperties cookieProperties) {
         this.authService = authService;
+        this.jwtCookieService = jwtCookieService;
+        this.jwtService = jwtService;
+        this.cookieProperties = cookieProperties;
     }
 
     @PostMapping("/register")
@@ -41,8 +53,29 @@ public class AuthController {
     @RateLimit(type = RateLimitType.LOGIN)
     public ResponseEntity<ApiResponse<AuthResponse>> login(
             @Valid @RequestBody LoginRequest request){
-        var response=authService.login(request);
-        return ResponseUtil.ok("Login successful", response);
+
+        AuthenticatedSession session=authService.login(request);
+
+        ResponseCookie accessCookie=jwtCookieService.createAccessTokenCookie(session.accessToken());
+
+        ResponseCookie refreshCookie=jwtCookieService.createRefreshTokenCookie(session.refreshToken());
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE,accessCookie.toString())
+                .header(HttpHeaders.SET_COOKIE,refreshCookie.toString())
+                .body(
+                        ApiResponse.of(
+                                true,
+                                "Login Successful",
+                                HttpStatus.OK.value(),
+                                new AuthResponse(
+                                        session.accessToken(),
+                                        "Bearer",
+                                        jwtService.getExpiration(),
+                                        session.refreshToken()
+                                )
+                        )
+                );
     }
 
     @GetMapping("/verify")
@@ -68,24 +101,63 @@ public class AuthController {
     @PostMapping("/refresh")
     @RateLimit(type = RateLimitType.REFRESH_TOKEN)
     public ResponseEntity<ApiResponse<AuthResponse>> refreshToken(
-            @Valid @RequestBody RefreshTokenRequest request){
-        return ResponseEntity.ok(ApiResponse.of(
-                true,
-                "Token refreshed Successfully",
-                HttpStatus.OK.value(),
-                authService.refreshToken(request)
-        ));
+            HttpServletRequest request){
+        String refreshToken= CookieUtils.getCookieValue(
+                request,
+                cookieProperties.refreshToken().name()
+        ).orElseThrow(()-> new UnauthorizedException("Refresh token not found"));
+
+        AuthenticatedSession session=authService.refreshToken(refreshToken);
+
+        ResponseCookie accessCookie=jwtCookieService.createAccessTokenCookie(session.accessToken());
+
+        ResponseCookie refreshCookie=jwtCookieService.createRefreshTokenCookie(session.refreshToken());
+
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE,accessCookie.toString())
+                .header(HttpHeaders.SET_COOKIE,refreshCookie.toString())
+                .body(
+                        ApiResponse.of(
+                                true,
+                                "Token refreshed successfully",
+                                HttpStatus.OK.value(),
+                                new AuthResponse(
+                                        session.accessToken(),
+                                        "Bearer",
+                                        jwtService.getExpiration(),
+                                        session.refreshToken()
+                                )
+                        )
+                );
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<ApiResponse<Void>> logout(@Valid @RequestBody RefreshTokenRequest request){
-        authService.logout(request);
-        return ResponseEntity.ok(ApiResponse.of(
-                true,
-                "Logged out successfully",
-                HttpStatus.OK.value(),
-                null
-        ));
+    public ResponseEntity<ApiResponse<Void>> logout(HttpServletRequest request){
+        String refreshToken = CookieUtils.getCookieValue(
+                request,
+                cookieProperties.refreshToken().name()
+        ).orElseThrow(() ->
+                new UnauthorizedException("Refresh token not found")
+        );
+
+        authService.logout(refreshToken);
+
+        ResponseCookie accessCookie = jwtCookieService.clearAccessTokenCookie();
+
+        ResponseCookie refreshCookie = jwtCookieService.clearRefreshTokenCookie();
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, accessCookie.toString())
+                .header(HttpHeaders.SET_COOKIE, refreshCookie.toString())
+                .body(
+                        ApiResponse.of(
+                                true,
+                                "Logged out successfully",
+                                HttpStatus.OK.value(),
+                                null
+                        )
+                );
     }
 
     @PostMapping("/forgot-password")
