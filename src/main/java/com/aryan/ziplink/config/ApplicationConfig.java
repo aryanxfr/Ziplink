@@ -11,7 +11,8 @@ import org.springframework.context.annotation.Configuration;
         AppProperties.class,
         SchedulerProperties.class,
         RateLimitProperties.class,
-        CacheProperties.class
+        CacheProperties.class,
+        CookieProperties.class
 })
 public class ApplicationConfig {
 }
