@@ -9,7 +9,6 @@ import com.aryan.ziplink.ratelimit.annotation.RateLimit;
 import com.aryan.ziplink.ratelimit.enums.RateLimitType;
 import com.aryan.ziplink.service.AnalyticsService;
 import com.aryan.ziplink.service.UrlService;
-import com.aryan.ziplink.util.ResponseUtil;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -44,6 +43,18 @@ public class UrlController {
                         response
                 ));
     }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<ApiResponse<UrlResponse>> getUrlById(@PathVariable UUID id) {
+        UrlResponse response = urlService.getUrlById(id);
+        return ResponseEntity.ok(ApiResponse.of(
+                true,
+                "URL fetched successfully",
+                HttpStatus.OK.value(),
+                response
+        ));
+    }
+
 
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteUrl(@PathVariable UUID id){
