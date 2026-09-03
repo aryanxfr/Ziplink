@@ -2,6 +2,7 @@ package com.aryan.ziplink.service.impl;
 
 import com.aryan.ziplink.config.ShortCodeProperties;
 import com.aryan.ziplink.dto.request.CreateUrlRequest;
+import com.aryan.ziplink.dto.request.UpdateUrlRequest;
 import com.aryan.ziplink.dto.response.UrlResponse;
 import com.aryan.ziplink.entity.Url;
 import com.aryan.ziplink.enums.UrlFilterStatus;
@@ -19,7 +20,6 @@ import com.aryan.ziplink.specifications.UrlSpecification;
 import com.aryan.ziplink.util.SecurityUtils;
 import com.aryan.ziplink.util.UrlBuilder;
 import org.springframework.cache.CacheManager;
-import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -37,17 +37,15 @@ import java.util.UUID;
 @Service
 public class UrlServiceImpl implements UrlService {
     private final UrlRepository urlRepository;
-    private UserRepository userRepository;
-    private UrlMapper urlMapper;
-    private ShortCodeGenerator shortCodeGenerator;
-    private UrlBuilder urlBuilder;
+    private final UrlMapper urlMapper;
+    private final ShortCodeGenerator shortCodeGenerator;
+    private final UrlBuilder urlBuilder;
     private final ShortCodeProperties shortCodeProperties;
     private final ExpiryService expiryService;
     private final CacheManager cacheManager;
 
     public UrlServiceImpl(UrlRepository urlRepository, UserRepository userRepository, UrlMapper urlMapper, ShortCodeGenerator shortCodeGenerator, UrlBuilder urlBuilder, ShortCodeProperties shortCodeProperties, ExpiryService expiryService, CacheManager cacheManager) {
         this.urlRepository = urlRepository;
-        this.userRepository = userRepository;
         this.urlMapper = urlMapper;
         this.shortCodeGenerator = shortCodeGenerator;
         this.urlBuilder = urlBuilder;
@@ -110,7 +108,7 @@ public class UrlServiceImpl implements UrlService {
         if(!url.getUser().getId().equals(currentUser.getId())){
             throw new ForbiddenException("You are not allowed to modify this URL");
         }
-        if(url.getExpiresAt().isBefore(Instant.now())){
+        if(url.getExpiresAt() != null && url.getExpiresAt().isBefore(Instant.now())){
             throw new BadRequestException("Expired URLs cannot be reactivated");
         }
         if(url.getActive()){
@@ -204,7 +202,7 @@ public class UrlServiceImpl implements UrlService {
             throw new ForbiddenException("You are not allowed to delete this URL");
         }
         if(url.getDeletedAt()!=null){
-            throw new BadRequestException("URL is already active");
+            throw new BadRequestException("URL is already deleted");
         }
         url.setActive(false);
         url.setDeletedAt(Instant.now());
@@ -213,6 +211,47 @@ public class UrlServiceImpl implements UrlService {
 
         cacheManager.getCache("redirects")
                 .evict(url.getShortCode());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public UrlResponse getUrlById(UUID urlId) {
+        var currentUser = SecurityUtils.currentUser();
+        var url = urlRepository.findById(urlId)
+                .orElseThrow(() -> new ResourceNotFoundException("URL not found"));
+        if (!url.getUser().getId().equals(currentUser.getId())) {
+            throw new ForbiddenException("You are not allowed to view this URL");
+        }
+        if (url.getDeletedAt() != null) {
+            throw new ResourceNotFoundException("URL not found");
+        }
+        return urlMapper.toResponse(url, urlBuilder.buildShortUrl(url.getShortCode()));
+    }
+
+    @Override
+    @Transactional
+    public UrlResponse updateUrl(UUID urlId, UpdateUrlRequest request) {
+        var currentUser = SecurityUtils.currentUser();
+        var url = urlRepository.findById(urlId)
+                .orElseThrow(() -> new ResourceNotFoundException("URL not found"));
+        if (!url.getUser().getId().equals(currentUser.getId())) {
+            throw new ForbiddenException("You are not allowed to modify this URL");
+        }
+        if (url.getDeletedAt() != null) {
+            throw new BadRequestException("Deleted URLs cannot be updated");
+        }
+        if (request.expiresAt() != null) {
+            if (request.expiresAt().isBefore(Instant.now())) {
+                throw new BadRequestException("Expiry date must be in the future");
+            }
+            url.setExpiresAt(request.expiresAt());
+        }
+        if (request.active() != null) {
+            url.setActive(request.active());
+        }
+        urlRepository.save(url);
+        cacheManager.getCache("redirects").evict(url.getShortCode());
+        return urlMapper.toResponse(url, urlBuilder.buildShortUrl(url.getShortCode()));
     }
 
     private Url saveWithUniqueShortCode(Url url) {
