@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.UuidGenerator;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -17,7 +18,7 @@ import java.util.UUID;
 @Table(name = "users")
 public class User extends BaseEntity{
     @Id
-    @UuidGenerator //hibernate generates the uuid
+    @UuidGenerator
     @Column(nullable = false, updatable = false)
     private UUID id;
 
@@ -37,12 +38,18 @@ public class User extends BaseEntity{
     @OneToMany(
             mappedBy = "user",cascade = CascadeType.ALL,orphanRemoval = true
     )
-    @Builder.Default // to avoid producing null instead it will give urls= []
+    @Builder.Default
     private List<Url> urls=new ArrayList<>();
 
     @Builder.Default
     @Column(nullable = false)
     private Boolean enabled = false;
 
+    @Column(nullable = false)
+    private boolean deleted = false;
+
+    private Instant deletedAt;
+
+    private String pendingEmail;
 
 }
