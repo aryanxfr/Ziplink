@@ -7,7 +7,6 @@ import com.aryan.ziplink.service.MailService;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMailMessage;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 import org.thymeleaf.TemplateEngine;
@@ -115,4 +114,24 @@ public class MailServiceImpl implements MailService {
         }
     }
 
+    @Override
+    public void sendEmailChangeVerification(User user, String newEmail, String verificationLink) {
+        Context context = new Context();
+        context.setVariable("name", user.getUsername());
+        context.setVariable("newEmail", newEmail);
+        context.setVariable("verificationLink", verificationLink);
+
+        String html = templateEngine.process("email-change-verification", context);
+        MimeMessage message = mailSender.createMimeMessage();
+        try {
+            MimeMessageHelper helper = new MimeMessageHelper(message, true);
+            helper.setTo(newEmail);
+            helper.setSubject("Verify your new email address — ZipLink");
+            helper.setText(html, true);
+
+            mailSender.send(message);
+        } catch (MessagingException ex) {
+            throw new RuntimeException("Failed to send email change verification email.", ex);
+        }
+    }
 }

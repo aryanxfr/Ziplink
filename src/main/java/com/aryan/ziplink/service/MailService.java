@@ -11,4 +11,6 @@ public interface MailService {
     void sendPasswordResetEmail(User user,String resetLink);
 
     void sendExpiryReminderEmail(User user, Url url);
+
+    void sendEmailChangeVerification(User user, String newEmail, String verificationLink);
 }
