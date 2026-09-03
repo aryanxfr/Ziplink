@@ -1,6 +1,7 @@
 package com.aryan.ziplink.service;
 
 import com.aryan.ziplink.dto.request.CreateUrlRequest;
+import com.aryan.ziplink.dto.request.UpdateUrlRequest;
 import com.aryan.ziplink.dto.response.UrlResponse;
 import com.aryan.ziplink.enums.UrlFilterStatus;
 import org.springframework.data.domain.Page;
@@ -18,6 +19,7 @@ public interface UrlService {
     List<UrlResponse> getRecentUrls(int limit);
     Page<UrlResponse> getTopUrls(Pageable pageable);
     void deleteUrl(UUID urlId);
-
+    UrlResponse getUrlById(UUID urlId);
+    UrlResponse updateUrl(UUID urlId, UpdateUrlRequest request);
 
 }
