@@ -1,6 +1,3 @@
-server:
-  port: 8080
-
 spring:
   config:
     activate:
@@ -34,23 +31,13 @@ spring:
   cache:
     type: redis
 
-  mail:
-    host: smtp.gmail.com
-    port: 587
-    username: ${MAIL_USERNAME}
-    password: ${MAIL_PASSWORD}
-    properties:
-      mail:
-        smtp:
-          auth: true
-          starttls:
-            enable: true
-
 cache:
   redirect-ttl-hours: 24
 
 app:
   base-url: ${BASE_URL}
+
+  scheduler: "0 0 2 * * *"
 
   jwt:
     secret: ${JWT_SECRET}
@@ -113,5 +100,5 @@ logging:
     org.flywaydb: DEBUG
     com.aryan.ziplink: DEBUG
     org.hibernate.SQL: DEBUG
-    org.hibernate.orm.jdbc.bind: DEBUG #before pushing to github change it to  DEBUG
+    org.hibernate.orm.jdbc.bind: DEBUG
     org.springframework.cache: TRACE
