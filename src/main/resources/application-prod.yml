@@ -1,6 +1,3 @@
-server:
-  port: 8080
-
 spring:
   config:
     activate:
@@ -10,6 +7,7 @@ spring:
     url: ${DB_URL}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
 
   jpa:
     hibernate:
@@ -24,27 +22,27 @@ spring:
     redis:
       host: ${REDIS_HOST}
       port: ${REDIS_PORT}
+      timeout: 6s
 
   cache:
     type: redis
 
-  mail:
-    host: smtp.gmail.com
-    port: 587
-    username: ${MAIL_USERNAME}
-    password: ${MAIL_PASSWORD}
-    properties:
-      mail:
-        smtp:
-          auth: true
-          starttls:
-            enable: true
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
 
 cache:
   redirect-ttl-hours: 24
 
 app:
   base-url: ${BASE_URL}
+  scheduler: "0 0 2 * * *"
+
+  cookie:
+    secure: true
+
   jwt:
     secret: ${JWT_SECRET}
     expiration: ${JWT_EXPIRATION}
@@ -91,6 +89,10 @@ rate-limit:
     duration: 3600
 
 management:
+  endpoints:
+    web:
+      exposure:
+        include: health
   endpoint:
     health:
       show-details: never
