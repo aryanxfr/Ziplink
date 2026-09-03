@@ -70,7 +70,7 @@ public class AuthServiceImpl implements AuthService {
         this.passwordResetTokenRepository = passwordResetTokenRepository;
     }
 
-    @Value("${app.frontend-url}")
+    @Value("${app.frontend.url}")
     private String frontendUrl;
 
     @Override
@@ -147,8 +147,10 @@ public class AuthServiceImpl implements AuthService {
         }
         User user=verificationToken.getUser();
         user.setEnabled(true);
+        userRepository.save(user);
         mailService.sendWelcomeEmail(user);
         verificationToken.setVerifiedAt(Instant.now());
+        verificationTokenRepository.save(verificationToken);
     }
 
     @Override
@@ -176,7 +178,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public AuthenticatedSession refreshToken(String refreshToken) {
         RefreshToken storedToken=refreshTokenRepository.findByToken(refreshToken)
                 .orElseThrow(()-> new UnauthorizedException("Invalid Refresh Token"));
@@ -286,5 +288,38 @@ public class AuthServiceImpl implements AuthService {
         refreshTokenRepository.saveAll(refreshTokens);
         userRepository.save(currentUser);
 
+    }
+    @Override
+    @Transactional
+    public void verifyEmailChange(String token) {
+        VerificationToken verificationToken = verificationTokenRepository
+                .findByToken(token)
+                .orElseThrow(() -> new ResourceNotFoundException("Invalid verification token"));
+
+        if (verificationToken.getExpiresAt().isBefore(Instant.now())) {
+            throw new BadRequestException("Verification token has expired. Please request a new email change.");
+        }
+
+        User user = verificationToken.getUser();
+
+        if (user.getPendingEmail() == null || user.getPendingEmail().isBlank()) {
+            throw new BadRequestException("No pending email change found.");
+        }
+
+        // Check the pending email is still available
+        if (userRepository.existsByEmail(user.getPendingEmail())) {
+            throw new BadRequestException("This email is already in use by another account.");
+        }
+
+        // Swap the email
+        user.setEmail(user.getPendingEmail());
+        user.setPendingEmail(null);
+        userRepository.save(user);
+
+        // Delete the verification token
+        verificationTokenRepository.delete(verificationToken);
+
+        // Invalidate all refresh tokens (force re-login with new email)
+        refreshTokenRepository.deleteByUser(user);
     }
 }
