@@ -12,7 +12,7 @@ import com.aryan.ziplink.security.auth.AuthenticatedSession;
 import com.aryan.ziplink.security.cookie.CookieUtils;
 import com.aryan.ziplink.security.cookie.JwtCookieService;
 import com.aryan.ziplink.service.JwtService;
-import com.aryan.ziplink.service.impl.AuthServiceImpl;
+import com.aryan.ziplink.service.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpHeaders;
@@ -24,11 +24,11 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/v1/auth")
 public class AuthController {
-    private final AuthServiceImpl authService;
+    private final AuthService authService;
     private final JwtCookieService jwtCookieService;
     private final JwtService jwtService;
     private final CookieProperties cookieProperties;
-    public AuthController(AuthServiceImpl authService, JwtCookieService jwtCookieService, JwtService jwtService, CookieProperties cookieProperties) {
+    public AuthController(AuthService authService, JwtCookieService jwtCookieService, JwtService jwtService, CookieProperties cookieProperties) {
         this.authService = authService;
         this.jwtCookieService = jwtCookieService;
         this.jwtService = jwtService;
@@ -69,10 +69,8 @@ public class AuthController {
                                 "Login Successful",
                                 HttpStatus.OK.value(),
                                 new AuthResponse(
-                                        session.accessToken(),
                                         "Bearer",
-                                        jwtService.getExpiration(),
-                                        session.refreshToken()
+                                        jwtService.getExpiration()
                                 )
                         )
                 );
@@ -123,10 +121,8 @@ public class AuthController {
                                 "Token refreshed successfully",
                                 HttpStatus.OK.value(),
                                 new AuthResponse(
-                                        session.accessToken(),
                                         "Bearer",
-                                        jwtService.getExpiration(),
-                                        session.refreshToken()
+                                        jwtService.getExpiration()
                                 )
                         )
                 );
@@ -190,5 +186,16 @@ public class AuthController {
                 "Password changed successfully",
                 HttpStatus.OK.value(),
                 null));
+    }
+
+    @GetMapping("/verify-email-change")
+    public ResponseEntity<ApiResponse<Void>> verifyEmailChange(@RequestParam String token) {
+        authService.verifyEmailChange(token);
+        return ResponseEntity.ok(ApiResponse.of(
+                true,
+                "Email updated successfully. Please log in with your new email.",
+                HttpStatus.OK.value(),
+                null
+        ));
     }
 }
