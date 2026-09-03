@@ -2,6 +2,7 @@ package com.aryan.ziplink.controller;
 
 import com.aryan.ziplink.dto.response.ApiResponse;
 import com.aryan.ziplink.dto.response.DashboardSummaryResponse;
+import com.aryan.ziplink.dto.response.DeviceBreakdownResponse;
 import com.aryan.ziplink.dto.response.UrlAnalyticsResponse;
 import com.aryan.ziplink.dto.response.UrlResponse;
 import com.aryan.ziplink.enums.UrlFilterStatus;
@@ -103,5 +104,23 @@ public class DashboardController {
                         analyticsService.getAnalytics(id)
                 )
         );
+    }
+
+    @GetMapping("/urls/{id}/analytics/devices")
+    public ResponseEntity<ApiResponse<List<DeviceBreakdownResponse>>> getDeviceBreakdown(@PathVariable UUID id) {
+        List<DeviceBreakdownResponse> response = analyticsService.getDeviceBreakdown(id);
+        return ResponseEntity.ok(ApiResponse.of(true, "Device breakdown fetched", HttpStatus.OK.value(), response));
+    }
+
+    @GetMapping("/urls/{id}/analytics/browsers")
+    public ResponseEntity<ApiResponse<List<DeviceBreakdownResponse>>> getBrowserBreakdown(@PathVariable UUID id) {
+        List<DeviceBreakdownResponse> response = analyticsService.getBrowserBreakdown(id);
+        return ResponseEntity.ok(ApiResponse.of(true, "Browser breakdown fetched", HttpStatus.OK.value(), response));
+    }
+
+    @GetMapping("/urls/{id}/analytics/referrers")
+    public ResponseEntity<ApiResponse<List<DeviceBreakdownResponse>>> getReferrerBreakdown(@PathVariable UUID id) {
+        List<DeviceBreakdownResponse> response = analyticsService.getReferrerBreakdown(id);
+        return ResponseEntity.ok(ApiResponse.of(true, "Referrer breakdown fetched", HttpStatus.OK.value(), response));
     }
 }
