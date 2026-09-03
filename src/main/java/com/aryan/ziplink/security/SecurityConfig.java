@@ -45,6 +45,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/auth/**")
                         .permitAll()
 
+                        .requestMatchers(HttpMethod.POST, "/api/v1/contact")
+                        .permitAll()
+
                         .requestMatchers("/swagger-ui/**",
                                 "/swagger-ui.html",
                                 "/v3/api-docs/**")
@@ -53,6 +56,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET,"/{shortcode}")
                         .permitAll()
 
+                        .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         .anyRequest()
                         .authenticated()
                 )
