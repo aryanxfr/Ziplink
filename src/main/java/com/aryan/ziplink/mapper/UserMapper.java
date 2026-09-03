@@ -1,10 +1,11 @@
 package com.aryan.ziplink.mapper;
 
 import com.aryan.ziplink.dto.request.RegisterRequest;
+import com.aryan.ziplink.dto.request.UpdateProfileRequest;
 import com.aryan.ziplink.dto.response.UserResponse;
 import com.aryan.ziplink.entity.User;
-import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
+import org.mapstruct.*;
+
 @Mapper(componentModel="spring")
 public interface UserMapper {
     @Mapping(target = "id", ignore = true)
@@ -14,4 +15,7 @@ public interface UserMapper {
     User toEntity(RegisterRequest request);
 
     UserResponse toResponse(User user);
+
+    @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+    void updateUser(UpdateProfileRequest request, @MappingTarget User user);
 }

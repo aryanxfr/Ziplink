@@ -21,10 +21,12 @@ public interface UrlMapper {
                 url.getId(),
                 url.getOriginalUrl(),
                 url.getShortCode(),
+                url.getCustomAlias(),
                 shortUrl,
                 url.getClickCount(),
                 url.getExpiresAt(),
-                url.getActive()
+                url.getActive(),
+                url.getCreatedAt()
         );
     }
 

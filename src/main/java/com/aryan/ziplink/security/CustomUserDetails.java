@@ -1,7 +1,6 @@
 package com.aryan.ziplink.security;
 
 import com.aryan.ziplink.entity.User;
-import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;

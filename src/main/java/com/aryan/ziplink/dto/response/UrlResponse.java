@@ -7,9 +7,11 @@ public record UrlResponse (
         UUID id,
         String originalUrl,
         String shortCode,
+        String customAlias,
         String shortUrl,
         Long clickCount,
         Instant expiresAt,
-        Boolean active
+        Boolean active,
+        Instant createdAt
 ){
 }
