@@ -2,8 +2,8 @@ package com.aryan.ziplink.service.impl;
 
 import com.aryan.ziplink.dto.response.AnalyticsSummaryResponse;
 import com.aryan.ziplink.dto.response.ClickEventResponse;
+import com.aryan.ziplink.dto.response.DeviceBreakdownResponse;
 import com.aryan.ziplink.dto.response.UrlAnalyticsResponse;
-import com.aryan.ziplink.dto.response.UrlResponse;
 import com.aryan.ziplink.entity.ClickEvent;
 import com.aryan.ziplink.entity.Url;
 import com.aryan.ziplink.exception.BadRequestException;
@@ -24,9 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -35,16 +33,16 @@ public class AnalyticsServiceImpl implements AnalyticsService {
     private final AnalyticsMapper analyticsMapper;
     private final UrlBuilder urlBuilder;
     private final ClickEventRepository clickEventRepository;
-    private final UrlMapper urlMapper;
     public AnalyticsServiceImpl(UrlRepository urlRepository, AnalyticsMapper analyticsMapper, UrlBuilder urlBuilder, ClickEventRepository clickEventRepository, UrlMapper urlMapper) {
         this.urlRepository = urlRepository;
         this.analyticsMapper = analyticsMapper;
         this.urlBuilder = urlBuilder;
         this.clickEventRepository = clickEventRepository;
-        this.urlMapper = urlMapper;
     }
+
     @Override
-    public void recordClick(Url url, HttpServletRequest request) {
+    public void recordClick(UUID urlId, HttpServletRequest request) {
+        Url url = urlRepository.getReferenceById(urlId);
         var clickEvent= ClickEvent.builder()
                 .url(url)
                 .ipAddress(RequestUtils.getClientIp(request))
@@ -66,18 +64,11 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         }
         List<ClickEvent> clickEvents=clickEventRepository.findTop10ByUrlOrderByClickedAtDesc(url);
         List<ClickEventResponse> recentClicks= analyticsMapper.toResponseList(clickEvents);
-        List<ClickEvent> allClickEvents=clickEventRepository.findByUrl(url);
-        Set<String> uniqueIps=new HashSet<>();
-        for(int i=0;i<allClickEvents.size();i++){
-            ClickEvent event=allClickEvents.get(i);
-            if(event.getIpAddress()!=null){
-                uniqueIps.add(event.getIpAddress());
-            }
-        }
+        long uniqueVisitors = clickEventRepository.countDistinctVisitorsByUrl(url);
         return analyticsMapper.toAnalyticsResponse(
                 url,
                 urlBuilder.buildShortUrl(url.getShortCode()),
-                        uniqueIps.size(),
+                        uniqueVisitors,
                         recentClicks);
     }
 
@@ -112,18 +103,21 @@ public class AnalyticsServiceImpl implements AnalyticsService {
     @Transactional(readOnly = true)
     public AnalyticsSummaryResponse getSummary() {
         var currentUser=SecurityUtils.currentUser();
-        long totalUrls= urlRepository.countByUser(currentUser);
-        long activeUrls=urlRepository.countByUserAndActiveTrue(currentUser);
-        long inactiveUrls=urlRepository.countByUserAndActiveFalse(currentUser);
         List<Url> urls=urlRepository.findByUser(currentUser);
-        long expiredUrls=0;
-        long totalClick=0;
-        Instant now=Instant.now();
-        for(int i=0;i<urls.size();i++){
-            Url url=urls.get(i);
-            totalClick+=url.getClickCount();
-            if(url.getExpiresAt()!=null && url.getExpiresAt().isBefore(now)){
+        long totalUrls = urls.size();
+        long activeUrls = 0;
+        long inactiveUrls = 0;
+        long expiredUrls = 0;
+        long totalClick = 0;
+        Instant now = Instant.now();
+        for (Url url : urls) {
+            totalClick += url.getClickCount();
+            if (url.getExpiresAt() != null && url.getExpiresAt().isBefore(now)) {
                 expiredUrls++;
+            } else if (Boolean.TRUE.equals(url.getActive())) {
+                activeUrls++;
+            } else {
+                inactiveUrls++;
             }
         }
         return new AnalyticsSummaryResponse(
@@ -133,5 +127,74 @@ public class AnalyticsServiceImpl implements AnalyticsService {
                 expiredUrls,
                 totalClick
         );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<DeviceBreakdownResponse> getDeviceBreakdown(UUID urlId) {
+        List<ClickEvent> events = clickEventRepository.findByUrlId(urlId);
+        java.util.Map<String, Long> deviceCounts = new java.util.LinkedHashMap<>();
+        for (ClickEvent event : events) {
+            String ua = event.getUserAgent();
+            String deviceType = "Desktop";
+            if (ua != null) {
+                if (ua.contains("Mobile") || ua.contains("Android") || ua.contains("iPhone")) {
+                    deviceType = "Mobile";
+                } else if (ua.contains("Tablet") || ua.contains("iPad")) {
+                    deviceType = "Tablet";
+                }
+            }
+            deviceCounts.merge(deviceType, 1L, Long::sum);
+        }
+        return deviceCounts.entrySet().stream()
+                .map(e -> new DeviceBreakdownResponse(e.getKey(), e.getValue()))
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<DeviceBreakdownResponse> getBrowserBreakdown(UUID urlId) {
+        List<ClickEvent> events = clickEventRepository.findByUrlId(urlId);
+        java.util.Map<String, Long> browserCounts = new java.util.LinkedHashMap<>();
+        for (ClickEvent event : events) {
+            String ua = event.getUserAgent();
+            String browser = "Other";
+            if (ua != null) {
+                if (ua.contains("Edg")) browser = "Edge";
+                else if (ua.contains("OPR") || ua.contains("Opera")) browser = "Opera";
+                else if (ua.contains("Chrome")) browser = "Chrome";
+                else if (ua.contains("Firefox")) browser = "Firefox";
+                else if (ua.contains("Safari")) browser = "Safari";
+            }
+            browserCounts.merge(browser, 1L, Long::sum);
+        }
+        return browserCounts.entrySet().stream()
+                .map(e -> new DeviceBreakdownResponse(e.getKey(), e.getValue()))
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<DeviceBreakdownResponse> getReferrerBreakdown(UUID urlId) {
+        List<ClickEvent> events = clickEventRepository.findByUrlId(urlId);
+        java.util.Map<String, Long> counts = new java.util.HashMap<>();
+        for (ClickEvent event : events) {
+            String ref = event.getReferer();
+            String domain = "Direct";
+            if (ref != null && !ref.isBlank()) {
+                try {
+                    java.net.URI uri = new java.net.URI(ref);
+                    if (uri.getHost() != null) {
+                        domain = uri.getHost();
+                    }
+                } catch (Exception e) {
+                    domain = "Direct";
+                }
+            }
+            counts.put(domain, counts.getOrDefault(domain, 0L) + 1);
+        }
+        return counts.entrySet().stream()
+                .map(e -> new DeviceBreakdownResponse(e.getKey(), e.getValue()))
+                .toList();
     }
 }

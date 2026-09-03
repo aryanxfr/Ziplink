@@ -5,7 +5,6 @@ import com.aryan.ziplink.dto.response.UrlAnalyticsResponse;
 import com.aryan.ziplink.entity.ClickEvent;
 import com.aryan.ziplink.entity.Url;
 import org.mapstruct.Mapper;
-import org.w3c.dom.ls.LSInput;
 
 import java.util.List;
 
