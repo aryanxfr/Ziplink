@@ -1,0 +1,32 @@
+export const ROUTES = {
+  HOME: "/",
+  ABOUT: "/about",
+  CONTACT: "/contact",
+  HOW_IT_WORKS: "/how-it-works",
+
+  LOGIN: "/login",
+  REGISTER: "/register",
+  FORGOT_PASSWORD: "/forgot-password",
+  RESET_PASSWORD: "/reset-password",
+  VERIFY_EMAIL: "/verify-email",
+  VERIFICATION_SUCCESS: "/verification-success",
+  VERIFICATION_FAILED: "/verification-failed",
+  PASSWORD_RESET_SUCCESS: "/password-reset-success",
+  EMAIL_SENT: "/email-sent",
+  VERIFY_EMAIL_CHANGE: "/verify-email-change",
+
+  DASHBOARD: "/dashboard",
+  URLS: "/dashboard/urls",
+  URL_DETAIL: "/dashboard/urls/:id",
+  ANALYTICS: "/dashboard/analytics",
+  SETTINGS: "/dashboard/settings",
+  MESSAGES: "/dashboard/messages",
+
+  NOT_FOUND: "/404",
+  SERVER_ERROR: "/500",
+  UNAUTHORIZED: "/401",
+  FORBIDDEN: "/403",
+  MAINTENANCE: "/maintenance",
+  OFFLINE: "/offline",
+  SESSION_EXPIRED: "/session-expired",
+};
