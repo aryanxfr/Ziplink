@@ -1,8 +1,7 @@
 package com.aryan.ziplink.controller;
 
-
+import com.aryan.ziplink.dto.request.ChangeEmailRequest;
 import com.aryan.ziplink.dto.request.DeleteAccountRequest;
-import com.aryan.ziplink.dto.request.UpdateProfileRequest;
 import com.aryan.ziplink.dto.response.ApiResponse;
 import com.aryan.ziplink.dto.response.UserResponse;
 import com.aryan.ziplink.security.cookie.JwtCookieService;
@@ -15,7 +14,6 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/users")
-
 public class UserController {
     private final UserService userService;
     private final JwtCookieService jwtCookieService;
@@ -26,34 +24,36 @@ public class UserController {
     }
 
     @GetMapping("/me")
-    public ResponseEntity<ApiResponse<UserResponse>> getCurrentUser(){
+    public ResponseEntity<ApiResponse<UserResponse>> getCurrentUser() {
         return ResponseEntity.ok(
                 ApiResponse.of(
                         true,
-                        "Users fetched successfully",
+                        "User fetched successfully",
                         HttpStatus.OK.value(),
                         userService.getCurrentUser()
                 )
         );
     }
 
-    @PatchMapping("/me")
-    public ResponseEntity<ApiResponse<UserResponse>> updateProfile(@Valid @RequestBody UpdateProfileRequest request){
+    @PostMapping("/me/change-email")
+    public ResponseEntity<ApiResponse<Void>> requestEmailChange(
+            @Valid @RequestBody ChangeEmailRequest request) {
+        userService.requestEmailChange(request);
         return ResponseEntity.ok(ApiResponse.of(
                 true,
-                "Profile updated successfully",
+                "Verification email sent to " + request.newEmail() + ". Please check your inbox.",
                 HttpStatus.OK.value(),
-                userService.updateProfile(request)
+                null
         ));
     }
 
     @DeleteMapping("/me")
     public ResponseEntity<ApiResponse<Void>> deleteAccount(
-            @Valid @RequestBody DeleteAccountRequest request){
+            @Valid @RequestBody DeleteAccountRequest request) {
         userService.deleteAccount(request);
 
         return ResponseEntity.ok()
-                .header(HttpHeaders.SET_COOKIE,jwtCookieService.clearAccessTokenCookie().toString())
+                .header(HttpHeaders.SET_COOKIE, jwtCookieService.clearAccessTokenCookie().toString())
                 .header(HttpHeaders.SET_COOKIE, jwtCookieService.clearRefreshTokenCookie().toString())
                 .body(ApiResponse.of(
                         true,
